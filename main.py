@@ -63,8 +63,16 @@ class Game:
     def wait_for_dispenser(self):
         self.__dispenser_event.wait()
 
-    def wait_for_round(self):
+    def wait_for_round(self,idx):
+        #if idx == -1:
+        #    self.output('[%d] dispenser enter barrier' % self.round)
+        #else:
+        #    self.output('[%d] player %d enter barrier' % (self.round, idx))
         self.__round_barrier.wait()
+        #if idx == -1:
+        #    self.output('[%d] dispenser leave barrier' % self.round)
+        #else:
+        #    self.output('[%d] player %d leave barrier' % (self.round, idx))
 
     def take(self):
         if self.__jack_lock.acquire(False):
@@ -76,10 +84,11 @@ class Game:
         return None
 
 
-    def report(self, rnd, idx, state, card):
+    def report(self, idx, state, card):
         state_acts = ['stole', 'took']
         place_score = [50,20,10,0]
         score = self.card_score(card)
+        rnd = self.round
 
         if state == -1:
             self.player_finnished.append(idx)
@@ -135,13 +144,10 @@ class Game:
                   self.end = True
                   break
             self.__dispenser_event.clear()              # 搶有就有 沒有就等下一輪
-            #self.output('dispenser enter barrier')
-            self.__round_barrier.wait()                 # 阿你是好了沒
-            #self.output('dispenser leave barrier')
+            self.round += 1                             # 新回合
+            self.wait_for_round(-1)                     # 阿你是好了沒
 
             self.steal = False                          # 關於偷牌這件事我們再評估
-
-            self.round += 1                             # 新回合
 
             self.wait_for_players()                     # 大家都好了嗎
 
@@ -158,8 +164,8 @@ class Game:
             self.__dispenser_event.set()                # 牌發了 大家都看好了 來搶噢
             self.wait_for_players()                     # 所以架打完了嗎
         
-        self.__round_barrier.wait()                     # 好了收工啦
-        print('It\'s over!')
+        self.wait_for_round(-1)                         # 好了收工啦
+        self.output('It\'s over!')
         self.game_end()
 
 if __name__ == '__main__':
