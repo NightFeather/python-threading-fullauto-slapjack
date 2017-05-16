@@ -11,27 +11,27 @@ import sys
 
 class Game:
     def __init__(self, count):
-        self.deck = Deck()
-        self.players = []
-        self.player_count = count
-        self.__round_barrier = Barrier(count+1)
-        self.__jack_lock = Lock()
-        self.__dispenser_event = Event()
-        self.__dispenser_lock = CounterLock(self.player_count)
+        self.deck = Deck()                          # 牌堆
+        self.players = []                           # 玩家清單
+        self.player_count = count                   # 玩家數量
+        self.__round_barrier = Barrier(count+1)     # 每回合末同步狀態用
+        self.__jack_lock = Lock()                   # 搶牌鎖定
+        self.__dispenser_event = Event()            # 牌發了沒
+        self.__dispenser_lock = CounterLock(self.player_count) # 發牌員等玩家用的鎖
 
-        self.steal = False
-        self.table_top = None
-        self.last_card = None
+        self.steal = False                          # 大家來偷牌
+        self.table_top = None                       # 桌面上可以搶的那張牌
+        self.last_card = None                       # 被搶走的牌
 
-        self.end = False
-        self.player_reports = [[] for i in range(self.player_count)]
-        self.player_finnished = []
+        self.end = False                            # GG?
+        self.player_reports = [[] for i in range(self.player_count)] # 得分記錄
+        self.player_finnished = []                  # 排名
 
-        self.round = 0
-        self.output_mutex = Lock()
+        self.round = 0                              # 回合計數器
+        self.output_mutex = Lock()                  # log 用的 lock, 不然你看想看意大利麵般的輸出嗎
 
-        self.deck.shuffle()
-        self.players = [Player(self, i) for i in range(self.player_count)]
+        self.deck.shuffle()                         # 洗牌
+        self.players = [Player(self, i) for i in range(self.player_count)] # 建立玩家
 
     def output(self, msg):
         with self.output_mutex:
@@ -106,10 +106,10 @@ class Game:
         
         return score
 
-    def round_check(self):
-        pass
-
     def game_end(self):
+        """
+        結算
+        """
         score_types = [(5, 'steal'), (10, 'same suit'), (30, 'same number')]
         for idx, rept in enumerate(self.player_reports):
             self.output('player %d scored %d' % (idx, sum(rept)))
@@ -131,35 +131,34 @@ class Game:
             player.start()
 
         while not game.end:
-            if not self.deck.deck: # check if there are still cards to dispense
+            if not self.deck.deck:                      # 牌堆空了沒
                   self.end = True
                   break
-            self.__dispenser_event.clear()
+            self.__dispenser_event.clear()              # 搶有就有 沒有就等下一輪
             #self.output('dispenser enter barrier')
-            self.__round_barrier.wait()  # syncing dispenser and all players
+            self.__round_barrier.wait()                 # 阿你是好了沒
             #self.output('dispenser leave barrier')
 
-            self.steal = False   # reset the steal mode indicator
+            self.steal = False                          # 關於偷牌這件事我們再評估
 
-            self.round += 1
+            self.round += 1                             # 新回合
 
-            self.wait_for_players() # make sure all players waiting
+            self.wait_for_players()                     # 大家都好了嗎
 
-            self.dispense()
+            self.dispense()                             # 發牌！
 
             player_state = set([player.check(self.table_top) for player in self.players])
-            if len(player_state) == 1:
-                if 0 in player_state:    # all player has no card matching
+            if len(player_state) == 1:                  # 大家都一樣
+                if 0 in player_state:                   # 都沒牌好搶
                     self.steal = True
-                elif -1 in player_state: # all players has no card in hand
+                elif -1 in player_state:                # 都兩手空空
                     self.end = True
 
-            self.__round_barrier = Barrier(4) # reset barrier
-            self.__dispenser_event.set() # wake all players
-            self.wait_for_players()
-            #time.sleep(0.001)  # wait for player sleep in
+            self.__round_barrier = Barrier(4)           # 重置同步
+            self.__dispenser_event.set()                # 牌發了 大家都看好了 來搶噢
+            self.wait_for_players()                     # 所以架打完了嗎
         
-        self.__round_barrier.wait()
+        self.__round_barrier.wait()                     # 好了收工啦
         print('It\'s over!')
         self.game_end()
 
