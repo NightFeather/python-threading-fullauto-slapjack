@@ -7,7 +7,10 @@ from barrier import Barrier
 from player import Player
 from counter_lock import CounterLock
 import time
+
 import sys
+import codecs
+import locale
 
 class Game:
     def __init__(self, count):
@@ -140,35 +143,36 @@ class Game:
             player.start()
 
         while not game.end:
-            if not self.deck.deck:                      # 牌堆空了沒
+            if not self.deck.deck:                                  # 牌堆空了沒
                   self.end = True
                   break
-            self.__dispenser_event.clear()              # 搶有就有 沒有就等下一輪
-            self.round += 1                             # 新回合
-            self.wait_for_round(-1)                     # 阿你是好了沒
+            self.__dispenser_event.clear()                          # 搶有就有 沒有就等下一輪
+            self.round += 1                                         # 新回合
+            self.wait_for_round(-1)                                 # 阿你是好了沒
 
-            self.steal = False                          # 關於偷牌這件事我們再評估
+            self.steal = False                                      # 關於偷牌這件事我們再評估
 
-            self.wait_for_players()                     # 大家都好了嗎
+            self.wait_for_players()                                 # 大家都好了嗎
 
-            self.dispense()                             # 發牌！
+            self.dispense()                                         # 發牌！
 
             player_state = set([player.check(self.table_top) for player in self.players])
-            if len(player_state) == 1:                  # 大家都一樣
-                if 0 in player_state:                   # 都沒牌好搶
+            if len(player_state) == 1:                              # 大家都一樣
+                if 0 in player_state:                               # 都沒牌好搶
                     self.steal = True
-                elif -1 in player_state:                # 都兩手空空
+                elif -1 in player_state:                            # 都兩手空空
                     self.end = True
 
-            self.__round_barrier = Barrier(4)           # 重置同步
-            self.__dispenser_event.set()                # 牌發了 大家都看好了 來搶噢
-            self.wait_for_players()                     # 所以架打完了嗎
+            self.__round_barrier = Barrier(self.player_count+1)     # 重置同步
+            self.__dispenser_event.set()                            # 牌發了 大家都看好了 來搶噢
+            self.wait_for_players()                                 # 所以架打完了嗎
         
-        self.wait_for_round(-1)                         # 好了收工啦
+        self.wait_for_round(-1)                                     # 好了收工啦
         self.output('It\'s over!')
         self.game_end()
 
 if __name__ == '__main__':
+    sys.stdout = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
     game = Game(4)
 
     game.mainloop()

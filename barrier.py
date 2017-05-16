@@ -24,8 +24,8 @@ class Barrier:
         with self.mutex:
             self.count += 1
             #print('[%d] ****%d****' % (id(self), self.count))
-
-            if self.count == self.num:
+            if self.count >= self.num:
                 self.barrier.release()
+
         self.barrier.acquire()
         self.barrier.release()
